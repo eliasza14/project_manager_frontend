@@ -14,6 +14,9 @@ const Navbar = () => {
         <li className={location.pathname === '/pmoverview' ? 'active' : ''}>
           <Link to="/pmoverview">📊 PM Overview</Link>
         </li>
+        <li className={location.pathname === '/usersoverview' ? 'active' : ''}>
+          <Link to="/usersoverview"> Users Overview</Link>
+        </li>
       </ul>
     </nav>
   );

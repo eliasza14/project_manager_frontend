@@ -20,31 +20,76 @@ const UsersOverview = () => {
   const [userOptions, setUserOptions] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userProjectData, setUserProjectData] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(null);
+  const [monthlyChartData, setMonthlyChartData] = useState(null);
+  const [availableYears, setAvailableYears] = useState([]);
 
   useEffect(() => {
     if (submitted) fetchData();
   }, [submitted]);
 
+  useEffect(() => {
+  if (!selectedUser || !selectedProject) return;
+
+  axios.get('http://localhost:5000/users-overview-project-timelogs', {
+    params: { alias: selectedUser, project: selectedProject }
+  }).then(res => {
+    const raw = res.data.map(r => ({
+      ...r,
+      start_time: new Date(r.start_time),
+      duration: Math.floor(r.duration / 3600)
+    }));
+
+    // Extract years across all rows
+    const allYears = [...new Set(raw.map(r => r.start_time.getFullYear()))];
+    setAvailableYears(allYears);
+
+    raw.forEach(r => {
+      r.year = r.start_time.getFullYear();
+      r.month = r.start_time.getMonth() + 1;
+    });
+
+    // Set chart data only if selectedYear is already chosen
+    if (selectedYear) {
+      const yearFiltered = raw.filter(r => r.year === selectedYear);
+      const monthly = Array(12).fill(0);
+      yearFiltered.forEach(r => {
+        monthly[r.month - 1] += r.duration;
+      });
+
+      setMonthlyChartData({
+        labels: [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ],
+        datasets: [{
+          label: `Duration (h) for ${selectedProject}`,
+          data: monthly,
+          borderColor: '#42A5F5',
+          fill: false,
+          tension: 0.3,
+          pointBackgroundColor: 'green',
+          pointRadius: monthly.map(val => val > 0 ? 6 : 0)
+        }]
+      });
+    }
+  });
+}, [selectedUser, selectedProject, selectedYear]);
+
   const fetchData = async () => {
     if (!(startDate instanceof Date) || isNaN(startDate) ||
-      !(endDate instanceof Date) || isNaN(endDate) ||
-      !filterOption) {
-      console.warn("Invalid or missing date/filter input");
+        !(endDate instanceof Date) || isNaN(endDate) || !filterOption) {
+      console.warn("Invalid or missing input");
       return;
     }
 
     const start = startDate.toISOString().split('T')[0];
     const end = endDate.toISOString().split('T')[0];
 
-    console.log('Sending API request with:', { startdate: start, enddate: end, filter: filterOption });
-
     try {
       const res = await axios.get('http://localhost:5000/users-overview', {
-        params: {
-          startdate: start,
-          enddate: end,
-          filter: filterOption
-        }
+        params: { startdate: start, enddate: end, filter: filterOption }
       });
 
       const filtered = res.data.filter(d => d.alias !== 'ADMINISTRATOR' && d.name !== 'Out of Office');
@@ -65,28 +110,33 @@ const UsersOverview = () => {
     setSelectedUser(user);
     const userData = data.filter(d => d.alias === user);
     setUserProjectData(userData);
+    setSelectedProject(null);
+    setSelectedYear(null);
+    setMonthlyChartData(null);
+    const years = [...new Set(userData.map(d => new Date(d.start_time).getFullYear()))];
+    setAvailableYears(years);
   };
 
   const pieData = () => {
-  const userProjectMap = {};
-  filteredData.forEach(row => {
-    if (!userProjectMap[row.alias]) userProjectMap[row.alias] = new Set();
-    userProjectMap[row.alias].add(row.name);
-  });
+    const userProjectMap = {};
+    filteredData.forEach(row => {
+      if (!userProjectMap[row.alias]) userProjectMap[row.alias] = new Set();
+      userProjectMap[row.alias].add(row.name);
+    });
 
-  const labels = Object.keys(userProjectMap);
-  const dataCounts = labels.map(label => userProjectMap[label].size);
-  const projectLists = labels.map(label => Array.from(userProjectMap[label]));
+    const labels = Object.keys(userProjectMap);
+    const dataCounts = labels.map(label => userProjectMap[label].size);
+    const projectLists = labels.map(label => Array.from(userProjectMap[label]));
 
-  return {
-    labels,
-    datasets: [{
-      data: dataCounts,
-      backgroundColor: ["#42A5F5", "#66BB6A", "#FFA726", "#26C6DA", "#7E57C2"],
-      projectLists
-    }]
+    return {
+      labels,
+      datasets: [{
+        data: dataCounts,
+        backgroundColor: ["#42A5F5", "#66BB6A", "#FFA726", "#26C6DA", "#7E57C2"],
+        projectLists
+      }]
+    };
   };
-};
 
   const summaryByUser = () => {
     const groups = {};
@@ -189,6 +239,48 @@ const UsersOverview = () => {
                 }} options={{ plugins: { legend: { display: false } }, scales: { x: { title: { display: true, text: 'Project' } }, y: { title: { display: true, text: 'Cost (€)' } } } }} style={{ maxWidth: '800px', height: '600px' }} />
               </>
             )}
+
+            <h3 className="mt-4">Επιλέξτε Project από τη λίστα</h3>
+<Dropdown
+  value={selectedProject}
+  onChange={(e) => {
+    setSelectedProject(e.value);
+    setSelectedYear(null);
+    setMonthlyChartData(null);
+  }}
+  options={userProjectData.map(d => ({ label: d.name, value: d.name }))}
+  placeholder="Επίλεξε Project"
+  className="w-full md:w-64"
+/>
+
+{selectedProject && (
+  <>
+    <h4 className="mt-4">Επιλέξτε Έτος</h4>
+    <Dropdown
+  value={selectedYear}
+  onChange={(e) => setSelectedYear(e.value)}
+  options={availableYears.map(y => ({ label: y, value: y }))}
+  placeholder="Επιλέξτε Έτος"
+  className="w-full md:w-64"
+/>
+{console.log("User project data start_times:", userProjectData.map(d => d.startime))}
+
+    {monthlyChartData && (
+      <Chart
+        type="line"
+        data={monthlyChartData}
+        options={{
+          plugins: { legend: { display: true } },
+          scales: {
+            x: { title: { display: true, text: 'Months' } },
+            y: { title: { display: true, text: 'Total Duration (h)' } }
+          }
+        }}
+        style={{ maxWidth: '900px', height: '450px', margin: '2rem auto' }}
+      />
+    )}
+  </>
+)}
           </div>
         </>
       )}
