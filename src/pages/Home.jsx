@@ -25,16 +25,20 @@ const Home = () => {
 
   const getSummary = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/summary`);
-      const filtered = response.data.filter(entry => entry.username !== 'ADMINISTRATOR');
-      setData(filtered.map(d => ({ ...d, duration: parseInt(d.duration) / 3600 })));
-    } catch (error) {
+        const response = await axios.get(`http://localhost:5000/summary`);
+        const filtered = response.data.filter(entry => entry.username !== 'ADMINISTRATOR');
+        setData(filtered.map(d => ({ ...d, duration: parseInt(d.duration) / 3600 })));
+      } 
+    catch (error) {
       console.log("Custom error message: Failed to fetch user history");
-      if (error.response && error.response.status === 403) {
-        alert("Access denied! Please contact an administrator.");
-      } else {
-        console.log("An error occurred:", error.message);
-      }
+      if (error.response && error.response.status === 403) 
+        {
+          alert("Access denied! Please contact an administrator.");
+        } 
+        else
+        {
+          console.log("An error occurred:", error.message);
+        }
     }
   };
 
@@ -124,7 +128,7 @@ const Home = () => {
                 layout={{ title: `Project Durations for ${selectedManager}` }}
               />
 
-              <TabView>
+              {/* <TabView>
                 {selectedManagerData.map((proj, idx) => (
                   <TabPanel header={typeof proj.project_name === 'string' ? proj.project_name : 'Unnamed'} key={idx}>
                     <div className="space-y-2">
@@ -135,7 +139,7 @@ const Home = () => {
                     </div>
                   </TabPanel>
                 ))}
-              </TabView>
+              </TabView> */}
             </div>
           )}
 
@@ -164,7 +168,6 @@ const Home = () => {
           </div>
         </>
       )}
-      <div></div>
     </div>
   );
 };

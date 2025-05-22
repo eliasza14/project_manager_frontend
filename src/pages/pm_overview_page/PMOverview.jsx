@@ -1,9 +1,5 @@
-// React JSX version of _pm-overview.py (streamlit)
-// Assumes data comes from an API endpoint returning the same structure
-
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import Plot from 'react-plotly.js';
 import { Calendar } from 'primereact/calendar';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
@@ -11,6 +7,8 @@ import { MultiSelect } from 'primereact/multiselect';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
+import { Chart } from 'primereact/chart';
+import './PMOverview.css';
 
 const PMOverview = () => {
   const [startDate, setStartDate] = useState(new Date());
@@ -35,16 +33,33 @@ const PMOverview = () => {
   };
 
   const managerOptions = [...new Set(data.map(d => d.username))].map(name => ({ label: name, value: name }));
+
   const grouped = data.reduce((acc, cur) => {
     acc[cur.username] = acc[cur.username] || [];
     acc[cur.username].push(cur.project_name);
     return acc;
   }, {});
-  const pieData = Object.entries(grouped).map(([username, projects]) => ({
-    username,
-    count: projects.length,
-    projectList: projects.join('<br>')
-  }));
+
+  const pieData = () => {
+  const grouped = data.reduce((acc, cur) => {
+    if (!acc[cur.username]) acc[cur.username] = new Set();
+    acc[cur.username].add(cur.project_name);
+    return acc;
+  }, {});
+
+  const labels = Object.keys(grouped);
+  const values = labels.map(label => grouped[label].size);
+  const projectLists = labels.map(label => Array.from(grouped[label]));
+
+  return {
+    labels,
+    datasets: [{
+      data: values,
+      backgroundColor: ['#42A5F5', '#66BB6A', '#FFA726', '#26C6DA', '#7E57C2', '#FF6384'],
+      projectLists // 👈 Add this for tooltip access
+    }]
+  };
+};
 
   const selectedData = data.filter(d => d.username === selectedManager);
   const selectedProjects = [...new Set(selectedData.map(d => d.project_name))];
@@ -53,10 +68,28 @@ const PMOverview = () => {
     ? [...new Set(data.map(d => d.username))]
     : comparisonSelection;
 
+  const comparisonBarData = () => {
+    const datasets = comparisonTargets.map((manager, index) => {
+      const subset = data.filter(d => d.username === manager);
+      return {
+        label: manager,
+        data: subset.map(p => p.duration),
+        backgroundColor: `hsl(${index * 60}, 70%, 60%)`
+      };
+    });
+
+    const allProjects = [...new Set(data.flatMap(d => d.project_name))];
+
+    return {
+      labels: allProjects,
+      datasets
+    };
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="card">
-        <h2>Φίλτρο Επισκόπησης project Managers</h2>
+        <h2>Φίλτρο Επισκόπησης Project Managers</h2>
         <div className="flex gap-4 items-end">
           <Calendar value={startDate} onChange={(e) => setStartDate(e.value)} showIcon className="w-full md:w-56" />
           <Calendar value={endDate} onChange={(e) => setEndDate(e.value)} showIcon className="w-full md:w-56" />
@@ -78,22 +111,35 @@ const PMOverview = () => {
           </div>
 
           <div className="card">
-            <h3>Επισκόπηση Project management</h3>
-            <Plot
-              data={[{
-                type: 'pie',
-                labels: pieData.map(p => p.username),
-                values: pieData.map(p => p.count),
-                text: pieData.map(p => p.projectList),
-                hoverinfo: 'label+text+value+percent',
-                textinfo: 'percent+label'
-              }]}
-              layout={{ title: 'Project Manager Overview' }}
-            />
+            <h3>Επισκόπηση Project Management</h3>
+            <Chart
+              type="pie"
+              data={pieData()}
+              options={{
+                plugins: {
+                  legend: { position: 'bottom' },
+                  tooltip: {
+                    callbacks: {
+                      label: (tooltipItem) => {
+                        const index = tooltipItem.dataIndex;
+                        const label = tooltipItem.chart.data.labels[index];
+                        const projects = tooltipItem.chart.data.datasets[0].projectLists[index] || [];
+                        return [
+                          `${label}:`,
+                          ...projects.map(p => `• ${p}`),
+                          `Total Projects: ${projects.length}`
+                        ];
+                      }
+                    }
+                  }
+                }
+              }}
+              style={{ maxWidth: '700px', height: '400px', margin: '0 auto' }}
+/>
           </div>
 
           <div className="card">
-            <h3>Επιλέξτε Project Manager απο την παρακάτω λίστα:</h3>
+            <h3>Επιλέξτε Project Manager από τη λίστα</h3>
             <Dropdown
               value={selectedManager}
               options={managerOptions}
@@ -103,29 +149,39 @@ const PMOverview = () => {
               filter
             />
 
-            {selectedManager && (
-              <Plot
-                data={[{
-                  type: 'bar',
-                  x: selectedData.map(d => d.project_name),
-                  y: selectedData.map(d => d.duration),
-                  text: selectedData.map(d => d.duration.toFixed(2)),
-                  marker: { color: '#2b6cb0' }
-                }]}
-                layout={{ title: `Project Manager: ${selectedManager} - Hourly Projects Duration` }}
+            {selectedManager && selectedData.length > 0 && (
+              <Chart
+                type="bar"
+                data={{
+                  labels: selectedData.map(d => d.project_name),
+                  datasets: [{
+                    label: 'Duration (h)',
+                    data: selectedData.map(d => d.duration),
+                    backgroundColor: '#2b6cb0'
+                  }]
+                }}
+                options={{
+                  plugins: {
+                    legend: { display: false }
+                  },
+                  scales: {
+                    x: { title: { display: true, text: 'Project' } },
+                    y: { title: { display: true, text: 'Hours' } }
+                  }
+                }}
+                style={{ maxWidth: '800px', height: '400px', margin: '2rem auto' }}
               />
             )}
 
-            {selectedProjects.length > 0 && (
+            {/* {selectedProjects.length > 0 && (
               <TabView>
                 {selectedProjects.map((proj, i) => (
                   <TabPanel header={proj} key={i}>
                     <p><strong>Project:</strong> {proj}</p>
-                    {/* Insert more project-specific visualizations if needed */}
                   </TabPanel>
                 ))}
               </TabView>
-            )}
+            )} */}
           </div>
 
           <div className="card">
@@ -139,17 +195,18 @@ const PMOverview = () => {
               className="w-full md:w-96"
             />
 
-            <Plot
-              data={comparisonTargets.map(manager => {
-                const subset = data.filter(d => d.username === manager);
-                return {
-                  type: 'bar',
-                  name: manager,
-                  x: subset.map(p => p.project_name),
-                  y: subset.map(p => p.duration),
-                };
-              })}
-              layout={{ barmode: 'stack', title: 'Project Manager Comparison' }}
+            <Chart
+              type="bar"
+              data={comparisonBarData()}
+              options={{
+                plugins: { legend: { position: 'top' } },
+                responsive: true,
+                scales: {
+                  x: { stacked: true, title: { display: true, text: 'Project' } },
+                  y: { stacked: true, title: { display: true, text: 'Duration (h)' } }
+                }
+              }}
+              style={{ maxWidth: '1000px', height: '500px', margin: '2rem auto' }}
             />
           </div>
         </>
