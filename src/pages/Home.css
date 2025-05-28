@@ -173,3 +173,26 @@
   background-color: #3182ce;
   color: #ffffff;
 }
+
+
+.dashboard-metrics {
+  display: flex;
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+.kpi-card {
+  flex: 1;
+  padding: 1rem;
+  background: #f1f5f9;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+.chart-section {
+  margin-top: 2rem;
+}
+.mt-6 {
+  margin-top: 2rem;
+}

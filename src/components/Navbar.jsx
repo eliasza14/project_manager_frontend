@@ -8,6 +8,9 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <ul className="nav-list">
+        <li className={location.pathname === '/dashboard' ? 'active' : ''}>
+          <Link to="/dashboard">Dashboard</Link>
+        </li>
         <li className={location.pathname === '/' ? 'active' : ''}>
           <Link to="/">🏠 Home</Link>
         </li>
@@ -16,6 +19,9 @@ const Navbar = () => {
         </li>
         <li className={location.pathname === '/usersoverview' ? 'active' : ''}>
           <Link to="/usersoverview"> Users Overview</Link>
+        </li>
+        <li className={location.pathname === '/usersoverview' ? 'active' : ''}>
+          <Link to="/projectoverview"> Projects Overview</Link>
         </li>
       </ul>
     </nav>
