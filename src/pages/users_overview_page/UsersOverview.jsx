@@ -9,6 +9,7 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Chart } from 'primereact/chart';
 import './UsersOverview.css';
+import InfoBox from '../../components/InfoBox';
 
 const UsersOverview = () => {
   const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)));
@@ -99,12 +100,19 @@ const UsersOverview = () => {
       const transformed = filtered.map(d => ({
         ...d,
         duration: Math.floor(d.duration / 3600),
-        cost: parseFloat(d.value) * Math.floor(d.duration / 3600)
+        cost: parseFloat(d.rate) * Math.floor(d.duration / 3600)
       }));
       setData(transformed);
       setFilteredData(transformed);
       setUserOptions([...new Set(transformed.map(d => d.alias))].map(name => ({ label: name, value: name })));
       setSubmitted(true)
+      
+      setSelectedUser(null);
+      setUserProjectData([]);
+      setSelectedProject(null);
+      setSelectedYear(null);
+      setMonthlyChartData(null);
+      setAvailableYears([]);
     } catch (err) {
       console.error('Failed to load user overview data', err);
     }
@@ -165,6 +173,7 @@ const UsersOverview = () => {
 
   return (
     <div className="p-6 space-y-6">
+      
       {/* <div className="card">
         <h2>User Overview Filters</h2>
         <div className="flex flex-wrap gap-4 items-end">
@@ -199,7 +208,7 @@ const UsersOverview = () => {
         </div>
       </div> */}
       {/* {console.log("submitted",submitted)} */}
-      
+      <div style={{display: "flex",flexDirection: "column",width: "800px",gap: "6px"}}>
 
       <Dropdown
               value={rangeMode}
@@ -211,7 +220,7 @@ const UsersOverview = () => {
               ]}
               onChange={(e) => setRangeMode(e.value)}
               placeholder="Select Range Type"
-              className="w-full md:w-56"
+              className="md:w-56"
             />
             <Dropdown
               value={visibilityFilter}
@@ -222,7 +231,7 @@ const UsersOverview = () => {
               ]}
               onChange={(e) => setVisibilityFilter(e.value)}
               placeholder="Select Visibility"
-              className="w-full md:w-56"
+              className="md:w-56"
             />
             {rangeMode === "range" && (
               <>
@@ -243,6 +252,11 @@ const UsersOverview = () => {
                 />
               </>
             )}
+            </div>
+            
+
+            <InfoBox startDate={startDate} endDate={endDate}/>
+
       
             {rangeMode === "month" && (
               <>
@@ -421,7 +435,7 @@ const UsersOverview = () => {
                 >
                   <Column field="name" header="Project" />
                   <Column field="duration" header="Duration (h)" />
-                  <Column field="value" header="Hourly Rate" />
+                  <Column field="rate" header="Hourly Rate" />
                   <Column field="cost" header="Total Cost (€)" />
                 </DataTable>
 

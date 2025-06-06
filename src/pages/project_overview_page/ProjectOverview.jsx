@@ -1,86 +1,205 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import apiBaseUrl from '../../apiConfig';
 import { Calendar } from 'primereact/calendar';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
-import { TabView, TabPanel } from 'primereact/tabview';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
-import { Chart } from 'primereact/chart';
+import { TabView, TabPanel } from 'primereact/tabview';
+import Chart from 'react-apexcharts';
 import './ProjectOverview.css';
+import InfoBox from '../../components/InfoBox';
 
 const ProjectOverview = () => {
-
   const [data, setData] = useState([]);
   const [filter, setFilter] = useState('Active');
-
   const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)));
   const [endDate, setEndDate] = useState(new Date());
-  const [rangeMode, setRangeMode] = useState('range'); // default: date range
+  const [rangeMode, setRangeMode] = useState('range');
   const [visibilityFilter, setVisibilityFilter] = useState('Total');
   const [projectDurations, setProjectDurations] = useState([]);
   const [userHours, setUserHours] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectUserData, setProjectUserData] = useState([]);
+  const [activeUserCount, setActiveUserCount] = useState(0);
+  const [activeProjectCount, setActiveProjectCount] = useState(0);
+  const [totalUsersInProject, setTotalUsersInProject] = useState(0);
+  const [projectUserCostData, setProjectUserCostData] = useState([]);
+  const [totalProjectCost, setTotalProjectCost] = useState(0);
+  const [projectBudget, setProjectBudget] = useState();
+
+const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+const [yearOptions, setYearOptions] = useState([]);
+
+const [monthlyCostData, setMonthlyCostData] = useState([]);
+const [monthlyHoursData, setMonthlyHoursData] = useState([]);
+
+
+
+
+const getYearsBetween = (start, end) => {
+  const years = [];
+  const startYear = start.getFullYear();
+  const endYear = end.getFullYear();
+  for (let y = startYear; y <= endYear; y++) {
+    years.push({ label: y.toString(), value: y });
+  }
+  return years;
+};
 
   const getProjectOverview = async () => {
     const start = startDate.toISOString().split("T")[0];
     const end = endDate.toISOString().split("T")[0];
 
+      // Generate available years for dropdown
+  setYearOptions(getYearsBetween(startDate, endDate));
+  if (!yearOptions.find((opt) => opt.value === selectedYear)) {
+    setSelectedYear(startDate.getFullYear());
+  }
+
+
     try {
-      const [projects, users, data] = await Promise.all([
-        axios.get("http://localhost:5000/timesheets/project-duration", {
+      const [projects, users, overviewData, activeUsers, activeProjects] = await Promise.all([
+        axios.get(`${apiBaseUrl}/timesheets/project-duration`, {
           params: { startdate: start, enddate: end, filter: visibilityFilter },
         }),
-        axios.get("http://localhost:5000/timesheets/user-project-hours", {
+        axios.get(`${apiBaseUrl}/timesheets/user-project-hours`, {
           params: { startdate: start, enddate: end },
         }),
-        axios.get("http://localhost:5000/projects-overview", {
+        axios.get(`${apiBaseUrl}/projects-overview`, {
           params: { startdate: start, enddate: end, filter: visibilityFilter },
         }),
-        // axios.get("http://localhost:5000/timesheets/project-users-hours", {
-        //   params: {projectName: selectedProject,startdate: start,enddate: end,filter: visibilityFilter},
-        // }),
+        axios.get(`${apiBaseUrl}/users/active-count`, {
+          params: { startdate: start, enddate: end },
+        }),
+        axios.get(`${apiBaseUrl}/projects/active-count`, {
+          params: { startdate: start, enddate: end },
+        }),
+        
       ]);
-      setData(data.data);
+
+      setData(overviewData.data);
       setProjectDurations(projects.data);
       setUserHours(users.data);
-      // setProjectUserData(res.data);
+      setActiveUserCount(activeUsers.data.total || 0);
+      setActiveProjectCount(activeProjects.data.total || 0);
     } catch (error) {
       console.error("Dashboard fetch error", error);
     }
   };
 
-  const fetchProjectUsers = async (projectName) => {
-    const start = startDate.toISOString().split("T")[0];
-    const end = endDate.toISOString().split("T")[0];
+  const fetchProjectUsers = async (projectName, yearParam = selectedYear) => {
+  const start = startDate.toISOString().split("T")[0];
+  const end = endDate.toISOString().split("T")[0];
 
-    try {
-      const res = await axios.get(
-        "http://localhost:5000/timesheets/project-users-hours",
-        {
-          params: {
-            projectName,
-            startdate: start,
-            enddate: end,
-            filter: visibilityFilter,
-          },
-        }
-      );
-      setProjectUserData(res.data);
-    } catch (error) {
-      console.error("Failed to fetch users for project:", error);
-      setProjectUserData([]);
+  const year = yearParam;
+        {console.log("The selecte year is:",year)}
+
+    console.log("inside fetch:",projectName)
+  try {
+    const [
+      userData,
+      totalCount,
+      costData,
+      budgetRes,
+      monthlyCostRes,
+      monthlyHoursRes,
+    ] = await Promise.all([
+      axios.get(`${apiBaseUrl}/timesheets/project-users-hours`, {
+        params: {
+          projectName,
+          startdate: start,
+          enddate: end,
+          filter: visibilityFilter,
+        },
+      }),
+      axios.get(`${apiBaseUrl}/projects/total-users`, {
+        params: { projectName, startdate: start, enddate: end },
+      }),
+      axios.get(`${apiBaseUrl}/project-users-hourly-costs`, {
+        params: { projectName, startdate: start, enddate: end },
+      }),
+      // axios.get(`${apiBaseUrl}/timesheets/project-total-cost", {
+      //   params: { projectName, startdate: start, enddate: end },
+      // }),
+
+      axios.get(`${apiBaseUrl}/projects/budget`, {
+        params: { projectName },
+      }),
+
+      axios.get(`${apiBaseUrl}/project-users-monthly-costs`, {
+        params: { projectName, year },
+      }),
+
+      axios.get(`${apiBaseUrl}/project-users-monthly-hours`, {
+        params: { projectName, year },
+      }),
+    ]);
+    const totalCost = costData.data.reduce((sum, user) => {
+      const cost = (user.hours || 0) * (user.hourly_rate || 0);
+      return sum + cost;
+    }, 0);
+    setTotalProjectCost(totalCost);
+
+    setProjectUserData(userData.data);
+    setTotalUsersInProject(totalCount.data.total_users || 0);
+    setProjectUserCostData(costData.data);
+    setProjectBudget(budgetRes.data.budget || 0);
+    setMonthlyCostData(monthlyCostRes.data);
+    setMonthlyHoursData(monthlyHoursRes.data);
+
+  } catch (error) {
+    console.error("Failed to fetch users or total count for project:", error);
+        setMonthlyCostData([]);
+
+    setProjectUserData([]);
+    setTotalUsersInProject(0);
+  }
+};
+
+
+  const sortedDurations = [...projectDurations].sort((a, b) => b.hours - a.hours);
+  const pieChartData = {
+    series: sortedDurations.map((p) => p.hours),
+    options: {
+      chart: {
+        type: 'pie',
+      },
+      labels: sortedDurations.map((p) => p.project_name),
+      legend: {
+        position: 'right',
+      },
+      dataLabels: {
+        enabled: true,
+        formatter: (val, opts) => {
+          const name = opts.w.globals.labels[opts.seriesIndex];
+          return `${val.toFixed(2)}%`;
+        },
+      },
+    },
+  };
+
+  const projectBarChart = {
+    series: [{
+      name: "Hours",
+      data: projectDurations.map((p) => p.hours),
+    }],
+    options: {
+      chart: { type: 'bar' },
+      xaxis: { categories: projectDurations.map((p) => p.project_name) },
+      plotOptions: {
+        bar: { distributed: true }
+      },
+      legend: { show: false }
     }
   };
 
-
-
-
-  
   return (
     <div className="p-6 space-y-6">
+      <div style={{display: "flex",flexDirection: "column",width: "800px",gap: "6px"}}>
       <Dropdown
         value={rangeMode}
         options={[
@@ -90,9 +209,9 @@ const ProjectOverview = () => {
           { label: "Half-Year", value: "half" },
         ]}
         onChange={(e) => setRangeMode(e.value)}
-        placeholder="Select Range Type"
-        className="w-full md:w-56"
+        className=" md:w-56"
       />
+
       <Dropdown
         value={visibilityFilter}
         options={[
@@ -101,9 +220,10 @@ const ProjectOverview = () => {
           { label: "Inactive Only", value: "Inactive" },
         ]}
         onChange={(e) => setVisibilityFilter(e.value)}
-        placeholder="Select Visibility"
-        className="w-full md:w-56"
+        className=" md:w-56"
       />
+      
+
       {rangeMode === "range" && (
         <>
           <Calendar
@@ -119,110 +239,24 @@ const ProjectOverview = () => {
           <Button
             label="Φόρτωσε Δεδομένα"
             onClick={getProjectOverview}
-            className="p-button-raised p-button-info text-white shadow-md"
+            className="p-button-info"
           />
         </>
       )}
+      </div>
+      <InfoBox startDate={startDate} endDate={endDate}/>
 
-      {rangeMode === "month" && (
-        <>
-          <Calendar
-            view="month"
-            dateFormat="mm/yy"
-            value={startDate}
-            onChange={(e) => {
-              const first = new Date(
-                e.value.getFullYear(),
-                e.value.getMonth(),
-                1
-              );
-              const last = new Date(
-                e.value.getFullYear(),
-                e.value.getMonth() + 1,
-                0
-              );
-              setStartDate(first);
-              setEndDate(last);
-            }}
-            showIcon
-          />
-          <Button
-            label="Φόρτωσε Δεδομένα"
-            onClick={getProjectOverview}
-            className="p-button-raised p-button-info text-white shadow-md"
-          />
-        </>
-      )}
 
-      {rangeMode === "quarter" && (
-        <>
-          <Dropdown
-            value={startDate}
-            options={[
-              {
-                label: "Q1 (Jan-Mar)",
-                value: new Date(new Date().getFullYear(), 0, 1),
-              },
-              {
-                label: "Q2 (Apr-Jun)",
-                value: new Date(new Date().getFullYear(), 3, 1),
-              },
-              {
-                label: "Q3 (Jul-Sep)",
-                value: new Date(new Date().getFullYear(), 6, 1),
-              },
-              {
-                label: "Q4 (Oct-Dec)",
-                value: new Date(new Date().getFullYear(), 9, 1),
-              },
-            ]}
-            onChange={(e) => {
-              const s = new Date(e.value);
-              const eDate = new Date(s.getFullYear(), s.getMonth() + 3, 0);
-              setStartDate(s);
-              setEndDate(eDate);
-            }}
-            placeholder="Select Quarter"
-            className="w-full md:w-64"
-          />
-          <Button
-            label="Φόρτωσε Δεδομένα"
-            onClick={getProjectOverview}
-            className="p-button-raised p-button-info text-white shadow-md"
-          />
-        </>
-      )}
-
-      {rangeMode === "half" && (
-        <>
-          <Dropdown
-            value={startDate}
-            options={[
-              {
-                label: "First Half (Jan-Jun)",
-                value: new Date(new Date().getFullYear(), 0, 1),
-              },
-              {
-                label: "Second Half (Jul-Dec)",
-                value: new Date(new Date().getFullYear(), 6, 1),
-              },
-            ]}
-            onChange={(e) => {
-              const s = new Date(e.value);
-              const eDate = new Date(s.getFullYear(), s.getMonth() + 6, 0);
-              setStartDate(s);
-              setEndDate(eDate);
-            }}
-            placeholder="Select Half-Year"
-            className="w-full md:w-64"
-          />
-          <Button
-            label="Φόρτωσε Δεδομένα"
-            onClick={getProjectOverview}
-            className="p-button-raised p-button-info text-white shadow-md"
-          />
-        </>
-      )}
+      <div className="dashboard-metrics">
+        <div className="kpi-card">👥 Total Active Users: {activeUserCount}</div>
+        <div className="kpi-card">
+          📁 Total Active Projects: {activeProjectCount}
+          <p className="kpi-note">
+            * Ανάμεσα στα έργα συμπεριλαμβάνονται και τα Business Development
+            για κάθε πελάτη
+          </p>
+        </div>
+      </div>
 
       {data.length > 0 && (
         <div className="card">
@@ -238,33 +272,40 @@ const ProjectOverview = () => {
             <Column
               field="enabled"
               header="Enabled"
-              body={(rowData) => (rowData.enabled ? "Yes" : "No")}
+              body={(row) => (row.enabled ? "Yes" : "No")}
             />
-            <Column field="duration" header="Duration (sec)" />
+            <Column
+              field="duration"
+              header="Duration (h)"
+              body={(row) => (row.duration / 3600).toFixed(2)}
+            />
             <Column field="starttime" header="Start Time" />
             <Column field="lasttime" header="Last Time" />
           </DataTable>
         </div>
       )}
 
-      <h3>📌 Project Durations</h3>
-      <Chart
-        type="bar"
-        data={{
-          labels: projectDurations.map((p) => p.project_name),
-          datasets: [
-            {
-              label: "Hours",
-              data: projectDurations.map((p) => p.hours),
-              backgroundColor: "#42A5F5",
-            },
-          ],
-        }}
-        options={{
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true } },
-        }}
-      />
+      <div className="card">
+        <TabView>
+          <TabPanel header="Project Durations">
+            <Chart
+              options={projectBarChart.options}
+              series={projectBarChart.series}
+              type="bar"
+              height={400}
+            />
+          </TabPanel>
+          <TabPanel header="Ποσοστά Χρόνου ανά Project">
+            <Chart
+              options={pieChartData.options}
+              series={pieChartData.series}
+              type="pie"
+              height={400}
+            />
+          </TabPanel>
+        </TabView>
+      </div>
+
       <h3 className="mt-6">👥 Users by Project</h3>
       <Dropdown
         value={selectedProject}
@@ -276,34 +317,405 @@ const ProjectOverview = () => {
           setSelectedProject(e.value);
           fetchProjectUsers(e.value);
         }}
-        placeholder="Select a project"
         className="w-full md:w-64 mb-4"
+        placeholder="Select a project"
       />
+
+      {selectedProject && (
+        <div className="kpi-card mt-4">
+          👤 Συνολικοί Χρήστες για το έργο <strong>{selectedProject}</strong>:{" "}
+          <strong>{totalUsersInProject}</strong>
+        </div>
+      )}
 
       {selectedProject && projectUserData.length > 0 && (
         <Chart
-          type="bar"
-          data={{
-            labels: projectUserData.map((u) => u.username),
-            datasets: [
-              {
-                label: `Hours on ${selectedProject}`,
-                data: projectUserData.map((u) => u.hours),
-                backgroundColor: "#66BB6A",
-              },
-            ],
-          }}
           options={{
-            indexAxis: "y",
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { title: { display: true, text: "Hours" } },
-              y: { title: { display: true, text: "User" } },
-            },
+            chart: { type: "bar" },
+            xaxis: { categories: projectUserData.map((u) => u.username) },
+            plotOptions: { bar: { horizontal: true } },
+            legend: { show: false },
           }}
-          style={{ maxWidth: "900px", height: "400px", margin: "0 auto" }}
+          series={[
+            {
+              name: `Hours on ${selectedProject}`,
+              data: projectUserData.map((u) => u.hours),
+            },
+          ]}
+          type="bar"
+          height={400}
         />
       )}
+
+      {selectedProject && (
+        <div className="kpi-card mt-2">
+          💰 Συνολικό Κόστος για το έργο <strong>{selectedProject}</strong>:{" "}
+          <strong>
+            {new Intl.NumberFormat("el-GR", {
+              style: "currency",
+              currency: "EUR",
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(totalProjectCost)}
+          </strong>
+        </div>
+      )}
+
+      {selectedProject && projectBudget > 0 && (
+        <div className="kpi-card mt-2">
+          📊 Συνολικός Προϋπολογισμός(Budget) για το έργο{" "}
+          <strong>{selectedProject}</strong>:{" "}
+          <strong>
+            {new Intl.NumberFormat("el-GR", {
+              style: "currency",
+              currency: "EUR",
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(projectBudget)}{" "}
+          </strong>
+        </div>
+      )}
+
+      {selectedProject && projectBudget > 0 && (
+        <div className="kpi-card mt-2">
+          📊 Ποσοστό Κόστους Προσωπικού για το έργο{" "}
+          <strong>{selectedProject}</strong>:{" "}
+          <strong>
+            {((totalProjectCost / projectBudget) * 100).toFixed(2)}%
+          </strong>
+        </div>
+      )}
+
+      {selectedProject && projectBudget > 0 && (
+        <div className="card">
+          <h3>📊 Ποσοστό Κόστους Προσωπικού για το έργο</h3>
+          <h3>
+            <strong>{selectedProject}</strong>
+          </h3>
+          <Chart
+            options={{
+              labels: ["Κόστος Προσωπικού", "Υπόλοιπο Προϋπολογισμού"],
+              legend: { position: "bottom" },
+              dataLabels: {
+                enabled: true,
+                formatter: (val) => `${val.toFixed(2)}%`,
+              },
+              tooltip: {
+                y: {
+                  formatter: (val) =>
+                    new Intl.NumberFormat("el-GR", {
+                      style: "currency",
+                      currency: "EUR",
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }).format(val),
+                },
+              },
+            }}
+            series={[
+              totalProjectCost,
+              Math.max(projectBudget - totalProjectCost, 0),
+            ]}
+            type="pie"
+            height={400}
+          />
+        </div>
+      )}
+
+      {selectedProject && projectUserCostData.length > 0 && (
+        <Chart
+          options={{
+            chart: { type: "bar" },
+            xaxis: {
+              categories: projectUserCostData.map((u) => u.username),
+              title: { text: "User" },
+            },
+            plotOptions: {
+              bar: { horizontal: true },
+            },
+            legend: { show: false },
+            tooltip: {
+              y: {
+                formatter: (val) =>
+                  new Intl.NumberFormat("el-GR", {
+                    style: "currency",
+                    currency: "EUR",
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }).format(val),
+              },
+            },
+            dataLabels: {
+              enabled: true,
+              formatter: (val) =>
+                new Intl.NumberFormat("el-GR", {
+                  style: "currency",
+                  currency: "EUR",
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(val),
+            },
+          }}
+          series={[
+            {
+              name: `Κόστος σε ${selectedProject}`,
+              data: projectUserCostData.map((u) =>
+                parseFloat((u.hours * (u.hourly_rate || 0)).toFixed(2))
+              ),
+            },
+          ]}
+          type="bar"
+          height={400}
+        />
+      )}
+
+      {console.log(getYearsBetween(startDate, endDate))}
+
+
+      {/* {selectedProject && monthlyCostData.length > 0 && (
+        <div className="card">
+          <h3>
+            📆 Μηνιαίο Κόστος Ανά Χρήστη για το Έργο{" "}
+            <strong>{selectedProject}</strong> ({selectedYear})
+          </h3>
+          <Chart
+            type="line"
+            height={450}
+            options={{
+              chart: { id: "monthly-user-cost", zoom: { enabled: true } },
+              xaxis: {
+                categories: [
+                  "Ιαν",
+                  "Φεβ",
+                  "Μαρ",
+                  "Απρ",
+                  "Μαϊ",
+                  "Ιουν",
+                  "Ιουλ",
+                  "Αυγ",
+                  "Σεπ",
+                  "Οκτ",
+                  "Νοε",
+                  "Δεκ",
+                ],
+                title: { text: "Μήνας" },
+              },
+              yaxis: {
+                title: { text: "Κόστος (€)" },
+                labels: {
+                  formatter: (val) =>
+                    new Intl.NumberFormat("el-GR", {
+                      style: "currency",
+                      currency: "EUR",
+                      minimumFractionDigits: 2,
+                    }).format(val),
+                },
+              },
+              tooltip: {
+                y: {
+                  formatter: (val) =>
+                    new Intl.NumberFormat("el-GR", {
+                      style: "currency",
+                      currency: "EUR",
+                      minimumFractionDigits: 2,
+                    }).format(val),
+                },
+              },
+              dataLabels: { enabled: false },
+              legend: { position: "bottom" },
+            }}
+            series={monthlyCostData.map((user) => ({
+              name: user.alias,
+              data: user.monthly_costs.map((val) => parseFloat(val)),
+            }))}
+          />
+        </div>
+      )} */}
+
+      {/* {selectedProject && monthlyHoursData.length > 0 && (
+        <div className="card">
+          <h3>
+            🕒 Μηνιαίες Ώρες Ανά Χρήστη για το Έργο{" "}
+            <strong>{selectedProject}</strong> ({selectedYear})
+          </h3>
+          <Chart
+            type="line"
+            height={450}
+            options={{
+              chart: { id: "monthly-user-hours", zoom: { enabled: true } },
+              xaxis: {
+                categories: [
+                  "Ιαν",
+                  "Φεβ",
+                  "Μαρ",
+                  "Απρ",
+                  "Μαϊ",
+                  "Ιουν",
+                  "Ιουλ",
+                  "Αυγ",
+                  "Σεπ",
+                  "Οκτ",
+                  "Νοε",
+                  "Δεκ",
+                ],
+                title: { text: "Μήνας" },
+              },
+              yaxis: {
+                title: { text: "Ώρες" },
+                labels: {
+                  formatter: (val) => val.toFixed(2),
+                },
+              },
+              tooltip: {
+                y: {
+                  formatter: (val) => `${val.toFixed(2)} ώρες`,
+                },
+              },
+              dataLabels: { enabled: false },
+              legend: { position: "bottom" },
+            }}
+            series={monthlyHoursData.map((user) => ({
+              name: user.alias,
+              data: user.monthly_hours.map((val) => parseFloat(val)),
+            }))}
+          />
+        </div>
+      )} */}
+
+      <div className="card">
+              {selectedProject && (
+        <Dropdown
+          value={selectedYear}
+          options={getYearsBetween(startDate, endDate)}
+          onChange={(e) => {
+            const year = e.value;
+            setSelectedYear(year);
+            if (selectedProject) {
+              fetchProjectUsers(selectedProject, year); // Pass year directly
+            }
+          }}
+          placeholder="Επιλέξτε Έτος"
+          className="w-full md:w-64 mb-4"
+        />
+      )}
+        <TabView>
+          <TabPanel header="Κόστος έργου Ανα μήνα Ανα Χρήστη">
+            {selectedProject && monthlyCostData.length > 0 && (
+              <div className="card">
+                <h3>
+                  📆 Μηνιαίο Κόστος Ανά Χρήστη για το Έργο{" "}
+                  <strong>{selectedProject}</strong> ({selectedYear})
+                </h3>
+                <Chart
+                  type="line"
+                  height={450}
+                  options={{
+                    chart: { id: "monthly-user-cost", zoom: { enabled: true } },
+                    xaxis: {
+                      categories: [
+                        "Ιαν",
+                        "Φεβ",
+                        "Μαρ",
+                        "Απρ",
+                        "Μαϊ",
+                        "Ιουν",
+                        "Ιουλ",
+                        "Αυγ",
+                        "Σεπ",
+                        "Οκτ",
+                        "Νοε",
+                        "Δεκ",
+                      ],
+                      title: { text: "Μήνας" },
+                    },
+                    yaxis: {
+                      title: { text: "Κόστος (€)" },
+                      labels: {
+                        formatter: (val) =>
+                          new Intl.NumberFormat("el-GR", {
+                            style: "currency",
+                            currency: "EUR",
+                            minimumFractionDigits: 2,
+                          }).format(val),
+                      },
+                    },
+                    tooltip: {
+                      y: {
+                        formatter: (val) =>
+                          new Intl.NumberFormat("el-GR", {
+                            style: "currency",
+                            currency: "EUR",
+                            minimumFractionDigits: 2,
+                          }).format(val),
+                      },
+                    },
+                    dataLabels: { enabled: false },
+                    legend: { position: "bottom" },
+                  }}
+                  series={monthlyCostData.map((user) => ({
+                    name: user.alias,
+                    data: user.monthly_costs.map((val) => parseFloat(val)),
+                  }))}
+                />
+              </div>
+            )}
+          </TabPanel>
+          <TabPanel header="Ωρες εργου Ανα μήνα Ανα χρήστη">
+            {selectedProject && monthlyHoursData.length > 0 && (
+              <div className="card">
+                <h3>
+                  🕒 Μηνιαίες Ώρες Ανά Χρήστη για το Έργο{" "}
+                  <strong>{selectedProject}</strong> ({selectedYear})
+                </h3>
+                <Chart
+                  type="line"
+                  height={450}
+                  options={{
+                    chart: {
+                      id: "monthly-user-hours",
+                      zoom: { enabled: true },
+                    },
+                    xaxis: {
+                      categories: [
+                        "Ιαν",
+                        "Φεβ",
+                        "Μαρ",
+                        "Απρ",
+                        "Μαϊ",
+                        "Ιουν",
+                        "Ιουλ",
+                        "Αυγ",
+                        "Σεπ",
+                        "Οκτ",
+                        "Νοε",
+                        "Δεκ",
+                      ],
+                      title: { text: "Μήνας" },
+                    },
+                    yaxis: {
+                      title: { text: "Ώρες" },
+                      labels: {
+                        formatter: (val) => val.toFixed(2),
+                      },
+                    },
+                    tooltip: {
+                      y: {
+                        formatter: (val) => `${val.toFixed(2)} ώρες`,
+                      },
+                    },
+                    dataLabels: { enabled: false },
+                    legend: { position: "bottom" },
+                  }}
+                  series={monthlyHoursData.map((user) => ({
+                    name: user.alias,
+                    data: user.monthly_hours.map((val) => parseFloat(val)),
+                  }))}
+                />
+              </div>
+            )}
+          </TabPanel>
+        </TabView>
+      </div>
     </div>
   );
 };
