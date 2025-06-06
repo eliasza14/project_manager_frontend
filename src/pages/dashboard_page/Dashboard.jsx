@@ -3,6 +3,7 @@ import { Calendar } from 'primereact/calendar';
 import { Button } from 'primereact/button';
 import { Chart } from 'primereact/chart';
 import axios from 'axios';
+import apiBaseUrl from '../../apiConfig';
 import '../Home.css';
 import { Dropdown } from 'primereact/dropdown';
 
@@ -26,20 +27,20 @@ const Dashboard = () => {
 
     try {
       const [current, previous, projects, users, freq] = await Promise.all([
-        axios.get("http://localhost:5000/timesheets/total-logged-hours", {
+        axios.get(`${apiBaseUrl}/timesheets/total-logged-hours`, {
           params: { startdate: start, enddate: end, filter: visibilityFilter },
         }),
-        axios.get("http://localhost:5000/timesheets/previous-logged-hours", {
+        axios.get(`${apiBaseUrl}/timesheets/previous-logged-hours`, {
           params: { startdate: start, enddate: end, filter: visibilityFilter },
         }),
-        axios.get("http://localhost:5000/timesheets/project-duration", {
+        axios.get(`${apiBaseUrl}/timesheets/project-duration`, {
           params: { startdate: start, enddate: end, filter: visibilityFilter },
         }),
-        axios.get("http://localhost:5000/timesheets/user-project-hours", {
+        axios.get(`${apiBaseUrl}/timesheets/user-project-hours`, {
           params: { startdate: start, enddate: end },
         }),
         axios.get(
-          "http://localhost:5000/timesheets/user-submission-frequency",
+          `${apiBaseUrl}/timesheets/user-submission-frequency`,
           {
             params: { startdate: start, enddate: end },
           }

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import apiBaseUrl from '../../apiConfig';
 import { Calendar } from 'primereact/calendar';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
@@ -18,12 +17,15 @@ const PMOverview = () => {
   const [endDate, setEndDate] = useState(new Date());
   const [submitted, setSubmitted] = useState(false);
   const [data, setData] = useState([]);
+    const [data2, setData2] = useState([]);
 
   const [uniqueProjects, setUniqueProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState('')
+  const [selectedProject, setSelectedProject] = useState("Funding Cancer 2024")
   const [selectedManager, setSelectedManager] = useState(null);
+  const [comparisonSelection, setComparisonSelection] = useState([]);
+  const [projectUserPieData, setProjectUserPieData] = useState({ labels: [], series: [] });
   const [visibilityFilter, setVisibilityFilter] = useState('Total');
-const [chartData, setChartData] = useState({ labels: [], series: [] });
+   const [chartData, setChartData] = useState({ labels: [], series: [] });
 
 
   // useEffect(() => {
@@ -32,7 +34,7 @@ const [chartData, setChartData] = useState({ labels: [], series: [] });
 
   const fetchData = async () => {
   try {
-    const res = await axios.get(`${apiBaseUrl}/summary`, {
+    const res = await axios.get('http://localhost:5000/summary', {
       params: { startdate: startDate, enddate: endDate, filter: visibilityFilter },
     });
 
@@ -50,37 +52,21 @@ const [chartData, setChartData] = useState({ labels: [], series: [] });
 };
 
 
-useEffect(() => {
-  if (selectedProject && startDate && endDate && visibilityFilter) {
-    fetchUserProjectHours();
-        console.log("Here are the data",chartData)
+  useEffect(() => {
+  if (!selectedProject || data.length === 0) return;
 
-  }
-}, [selectedProject, startDate, endDate, visibilityFilter]);
+  const filtered = data.filter(d => d.project_name === selectedProject);
 
-const fetchUserProjectHours = async () => {
-  console.log("user project running fetcg")
-  if (!selectedProject) return;
+  const totalHours = filtered.reduce((sum, d) => sum + d.duration, 0);
 
-  try {
-    const res = await axios.get("http://localhost:5000/user-project-hours", {
-      params: {
-        projectName: selectedProject,
-        startdate: startDate,
-        enddate: endDate,
-        filter: visibilityFilter,
-      },
-    });
+  const labels = filtered.map(d => d.username);
+  const series = filtered.map(d => ((d.duration / totalHours) * 100).toFixed(2));
 
-    const labels = res.data.map((item) => item.username);
-    const series = res.data.map((item) => parseFloat(item.total_hours));
+  setProjectUserPieData({ labels, series });
 
-    console.log("Fetched Chart Data:", { labels, series }); // Debug
-    setChartData({ labels, series });
-  } catch (error) {
-    console.error("Failed to fetch user project hours:", error);
-  }
-};
+}, [selectedProject, data]);
+
+
 
 
   const managerOptions = [...new Set(data.map(d => d.username))].map(name => ({ label: name, value: name }));
@@ -91,6 +77,7 @@ const fetchUserProjectHours = async () => {
   if (startDate && endDate && visibilityFilter) {
     fetchData();
     setSubmitted(true);
+    fetchData2()
     
   }
 }, [startDate, endDate, visibilityFilter,selectedProject]);
@@ -121,14 +108,75 @@ const pieChart = pieData();
 
 
 
-  
+  const fetchData2 = async () => {
+            console.log("here is the selecte project:",selectedProject)
+
+    try {
+      const res = await axios.get('http://localhost:5000/user-project-hours', {
+        params: {projectName: selectedProject, startdate: startDate, enddate: endDate,filter: visibilityFilter },
+      });
+      // const filtered = res.data.filter(entry => entry.username !== 'ADMINISTRATOR');
+      // setData2(filtered.map(d => ({ ...d, duration: parseInt(d.duration) / 3600 })));
+      // console.log("Fetch data2",filtered)
+
+      console.log("here is the",res)
+
+    const labels = res.map((item) => item.username);
+    const series = res.map((item) => parseFloat(item.total_hours));
+      
+    setChartData({ labels, series });
+
+
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    }
+  };
+
+
+//////////pie chart data2
+
+  // useEffect(() => {
+  //   // Simulate API response
+  //   const response = [
+  //     { username: "Ippokratis Geranakis", total_hours: "74.0000" },
+  //     { username: "Zampetakis Ilias", total_hours: "48.0000" },
+  //     { username: "Antonis Palios", total_hours: "21.0000" },
+  //   ];
+    
+
+
+  // }, [])
 
 
 
+
+
+///////////////////////////////////////////
 
   const selectedData = data.filter(d => d.username === selectedManager);
+  // const selectedProjects = [...new Set(selectedData.map(d => d.project_name))];
 
+  const comparisonTargets = comparisonSelection.includes('All')
+    ? [...new Set(data.map(d => d.username))]
+    : comparisonSelection;
 
+  const comparisonBarData = () => {
+    const datasets = comparisonTargets.map((manager, index) => {
+      const subset = data.filter(d => d.username === manager);
+      return {
+        label: manager,
+        data: subset.map(p => p.duration),
+        backgroundColor: `hsl(${index * 60}, 70%, 60%)`
+      };
+    });
+
+    const allProjects = [...new Set(data.flatMap(d => d.project_name))];
+
+    return {
+      labels: allProjects,
+      datasets
+    };
+  };
 
   
 
@@ -307,32 +355,27 @@ const pieChart = pieData();
               placeholder="Select Project"
               className="w-full md:w-72"
             />
-
-            {chartData.series.length > 0 && (
-    <ApexChart
-      options={{
-        labels: chartData.labels,
-        legend: { position: "right" },
-        tooltip: {
-          y: {
-            formatter: (val) => `${val.toFixed(2)} hours`,
+         <ApexChart
+        type="pie"
+        width="600"
+        options={{
+          labels: chartData.labels,
+          legend: { position: "right" },
+          tooltip: {
+            y: {
+              formatter: (val) => `${val.toFixed(2)} hours`,
+            },
           },
-        },
-        dataLabels: {
-          enabled: true,
-          formatter: (val, opts) => {
-            const label = opts.w.globals.labels[opts.seriesIndex];
-            return `${label}: ${val.toFixed(2)}h`;
+          dataLabels: {
+            enabled: true,
+            formatter: (val, opts) => {
+              const label = opts.w.globals.labels[opts.seriesIndex];
+              return `${label}: ${val.toFixed(1)}%`;
+            },
           },
-        },
-      }}
-      series={chartData.series}
-      type="pie"
-      width="600"
-      height="400"
-    />
-  )}
-       
+        }}
+        series={chartData.series}
+      />
     
         </div>
 
@@ -340,7 +383,42 @@ const pieChart = pieData();
 
 
 
-       
+          {/* <div className="card">
+            <h3>Σύγκριση Project Managers</h3>
+            <MultiSelect
+              value={comparisonSelection}
+              options={[...managerOptions, { label: "All", value: "All" }]}
+              onChange={(e) => setComparisonSelection(e.value)}
+              placeholder="Select managers"
+              display="chip"
+              className="w-full md:w-96"
+            />
+
+            <Chart
+              type="bar"
+              data={comparisonBarData()}
+              options={{
+                plugins: { legend: { position: "top" } },
+                responsive: true,
+                scales: {
+                  x: {
+                    stacked: true,
+                    title: { display: true, text: "Project" },
+                  },
+                  y: {
+                    stacked: true,
+                    title: { display: true, text: "Duration (h)" },
+                  },
+                },
+              }}
+              style={{
+                maxWidth: "1000px",
+                height: "500px",
+                margin: "2rem auto",
+              }}
+            />
+         
+          </div> */}
         </>
       )}
     </div>

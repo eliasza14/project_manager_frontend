@@ -6,16 +6,19 @@ import Navbar from './components/Navbar';
 import ProjectOverview from './pages/project_overview_page/ProjectOverview';
 import UsersOverview from './pages/users_overview_page/UsersOverview';
 import Dashboard from './pages/dashboard_page/Dashboard';
+import UserRates from './pages/UserRates_page/UserRates';
+
 function App() {
   return (
     <Router>
       <Navbar />
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/user-rates" element={<UserRates />} />
+        {/* <Route path="/" element={<Home />} /> */}
         <Route path="/pmoverview" element={<PMOverview />} />
         <Route path="/usersoverview" element={<UsersOverview />} />
         <Route path="/projectoverview" element={<ProjectOverview />} />
-        <Route path = "/dashboard" element = {<Dashboard/>}></Route>
+        <Route path = "/" element = {<Dashboard/>}></Route>
       </Routes>
     </Router>
   );
