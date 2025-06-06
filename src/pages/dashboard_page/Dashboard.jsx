@@ -8,7 +8,7 @@ import '../Home.css';
 import { Dropdown } from 'primereact/dropdown';
 
 const Dashboard = () => {
-  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)));
+  const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [kpis, setKpis] = useState({ current: 0, previous: 0 });
   const [projectDurations, setProjectDurations] = useState([]);
@@ -55,6 +55,13 @@ const Dashboard = () => {
       console.error("Dashboard fetch error", error);
     }
   };
+
+  useEffect(() => {
+    if (startDate && endDate && visibilityFilter) {
+      fetchDashboardData();
+  
+    }
+  }, [startDate, endDate, visibilityFilter]);
 
 
   const formatPercentage = () => {

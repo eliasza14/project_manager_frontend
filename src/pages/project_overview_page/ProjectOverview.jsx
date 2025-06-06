@@ -287,7 +287,7 @@ const getYearsBetween = (start, end) => {
 
       <div className="card">
         <TabView>
-          <TabPanel header="Project Durations">
+          <TabPanel header="Συνολική διάρκεια ανά Project">
             <Chart
               options={projectBarChart.options}
               series={projectBarChart.series}

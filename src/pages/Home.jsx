@@ -9,6 +9,7 @@ import { TabView, TabPanel } from 'primereact/tabview';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import './Home.css';
+import apiBaseUrl from '../apiConfig';
 
 const Home = () => {
   const [startDate, setStartDate] = useState(new Date());
@@ -25,7 +26,7 @@ const Home = () => {
 
   const getSummary = async () => {
     try {
-        const response = await axios.get(`http://localhost:5000/summary`);
+        const response = await axios.get(`${apiBaseUrl}/summary`);
         const filtered = response.data.filter(entry => entry.username !== 'ADMINISTRATOR');
         setData(filtered.map(d => ({ ...d, duration: parseInt(d.duration) / 3600 })));
       } 

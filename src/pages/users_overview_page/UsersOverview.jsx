@@ -10,6 +10,8 @@ import { Column } from 'primereact/column';
 import { Chart } from 'primereact/chart';
 import './UsersOverview.css';
 import InfoBox from '../../components/InfoBox';
+import apiBaseUrl from '../../apiConfig';
+
 
 const UsersOverview = () => {
   const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)));
@@ -36,7 +38,7 @@ const UsersOverview = () => {
   useEffect(() => {
   if (!selectedUser || !selectedProject) return;
 
-  axios.get('http://localhost:5000/users-overview-project-timelogs', {
+  axios.get(`${apiBaseUrl}/users-overview-project-timelogs`, {
     params: { alias: selectedUser, project: selectedProject }
   }).then(res => {
     const raw = res.data.map(r => ({
@@ -92,7 +94,7 @@ const UsersOverview = () => {
     const end = endDate.toISOString().split('T')[0];
 
     try {
-      const res = await axios.get('http://localhost:5000/users-overview', {
+      const res = await axios.get(`${apiBaseUrl}/users-overview`, {
         params: { startdate: start, enddate: end, filter: filterOption }
       });
 
@@ -361,7 +363,7 @@ const UsersOverview = () => {
       {submitted && (
         <>
           <div className="card">
-            <h3>Project Count Per User</h3>
+            <h3>Συνολικά Projects που ασχολείται κάθε χρήστης</h3>
             <Chart
               type="pie"
               data={pieData()}
@@ -393,7 +395,7 @@ const UsersOverview = () => {
           </div>
 
           <div className="card">
-            <h3>Total Working Hours per User</h3>
+            <h3>Συνολικές ώρες κάθε Χρήστη</h3>
             <Chart
               type="bar"
               data={summaryBarData()}
@@ -409,7 +411,7 @@ const UsersOverview = () => {
           </div>
 
           <div className="card">
-            <h3>Select a User</h3>
+            <h3>Επιλέξτε Χρήστη</h3>
             <Dropdown
               value={selectedUser}
               onChange={(e) => handleUserSelect(e.value)}
@@ -438,7 +440,7 @@ const UsersOverview = () => {
                   <Column field="rate" header="Hourly Rate" />
                   <Column field="cost" header="Total Cost (€)" />
                 </DataTable>
-
+                <h3>Αναλυτικά συνολικές ώρες του χρήστη {selectedUser}</h3>
                 <Chart
                   type="pie"
                   data={{
@@ -459,7 +461,7 @@ const UsersOverview = () => {
                   options={{ plugins: { legend: { position: "bottom" } } }}
                   style={{ maxWidth: "600px", height: "500px" }}
                 />
-
+                <h3>Συνολικό κόστος ανα Project για τον {selectedUser}</h3>
                 <Chart
                   type="bar"
                   data={{

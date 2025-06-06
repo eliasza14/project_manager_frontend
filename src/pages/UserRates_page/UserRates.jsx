@@ -6,6 +6,7 @@ import { InputText } from 'primereact/inputtext';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import './UserRates.css';
+import apiBaseUrl from '../../apiConfig';
 
 const UserRates = () => {
   const [data, setData] = useState([]);
@@ -14,7 +15,7 @@ const UserRates = () => {
 
   const fetchUserRates = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/users/dayoff-hourly-rates');
+      const res = await axios.get(`${apiBaseUrl}/users/dayoff-hourly-rates`);
       setData(res.data);
     } catch (err) {
       console.error("Fetch error:", err);
@@ -35,7 +36,7 @@ const UserRates = () => {
     
 
     try {
-      await axios.patch('http://localhost:5000/users/update-hourly-rate', {
+      await axios.patch(`${apiBaseUrl}/users/update-hourly-rate`, {
         userId: user_id,
         hourly_rate: parseFloat(hourly_rate),
       });

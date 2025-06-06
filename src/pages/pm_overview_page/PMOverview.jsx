@@ -23,7 +23,11 @@ const PMOverview = () => {
   const [selectedProject, setSelectedProject] = useState('')
   const [selectedManager, setSelectedManager] = useState(null);
   const [visibilityFilter, setVisibilityFilter] = useState('Total');
-const [chartData, setChartData] = useState({ labels: [], series: [] });
+  const [chartData, setChartData] = useState({ labels: [], series: [] });
+  const [pmOptions, setPmOptions] = useState([]); // all managers
+  const [selectedPMs, setSelectedPMs] = useState([]); // selected
+  const [pmBarChartData, setPmBarChartData] = useState({ labels: [], series: [] });
+
 
 
   // useEffect(() => {
@@ -58,12 +62,67 @@ useEffect(() => {
   }
 }, [selectedProject, startDate, endDate, visibilityFilter]);
 
+const [pmSummaryRaw, setPmSummaryRaw] = useState([]);
+
+const fetchPmSummary = async () => {
+  try {
+    const res = await axios.get(`${apiBaseUrl}/stack-bar`, {
+      params: {
+        startdate: startDate,
+        enddate: endDate,
+        filter: visibilityFilter,
+      },
+    });
+
+    setPmSummaryRaw(res.data);
+
+    // extract unique PMs
+    const uniqueManagers = [
+      ...new Set(res.data.map((d) => d.username)),
+    ].map((name) => ({ label: name, value: name }));
+    setPmOptions(uniqueManagers);
+
+  } catch (error) {
+    console.error("Error fetching PM summary", error);
+  }
+};
+
+useEffect(() => {
+  if (selectedPMs.length && pmSummaryRaw.length) {
+    const filtered = pmSummaryRaw.filter((d) =>
+      selectedPMs.includes(d.username)
+    );
+
+    const allProjects = [
+      ...new Set(filtered.map((item) => item.project_name)),
+    ];
+
+    const series = allProjects.map((project) => ({
+      name: project,
+      data: selectedPMs.map((pm) => {
+        const match = filtered.find(
+          (d) => d.username === pm && d.project_name === project
+        );
+        return match ? parseFloat(match.total_hours) : 0;
+      }),
+    }));
+
+    setPmBarChartData({
+      labels: selectedPMs,
+      series,
+    });
+  } else {
+    setPmBarChartData({ labels: [], series: [] });
+  }
+}, [selectedPMs, pmSummaryRaw]);
+
+
 const fetchUserProjectHours = async () => {
   console.log("user project running fetcg")
   if (!selectedProject) return;
 
   try {
-    const res = await axios.get("http://localhost:5000/user-project-hours", {
+    const res = await axios.get(`${apiBaseUrl}/user-project-hours`, {
       params: {
         projectName: selectedProject,
         startdate: startDate,
@@ -82,6 +141,8 @@ const fetchUserProjectHours = async () => {
   }
 };
 
+const totalProjectHours = chartData.series.reduce((sum, val) => sum + val, 0).toFixed(2);
+
 
   const managerOptions = [...new Set(data.map(d => d.username))].map(name => ({ label: name, value: name }));
 
@@ -91,7 +152,7 @@ const fetchUserProjectHours = async () => {
   if (startDate && endDate && visibilityFilter) {
     fetchData();
     setSubmitted(true);
-    
+    fetchPmSummary();
   }
 }, [startDate, endDate, visibilityFilter,selectedProject]);
  
@@ -237,8 +298,9 @@ const pieChart = pieData();
               className="w-full md:w-72"
               filter
             />
-
+            <h3>Συνολικές ωρες για κάθε Project για τον Project Manager {selectedManager}</h3>
             {selectedManager && selectedData.length > 0 && (
+              
               <ApexChart
                 type="bar"
                 height={400}
@@ -303,11 +365,13 @@ const pieChart = pieData();
                 label: name,
                 value: name,
               }))}
-              onChange={(e) => setSelectedProject(e.value)}
+              onChange={(e) => {
+                setSelectedProject(e.value); 
+                setChartData({ labels: [], series: [] });}} // clear old data}}
               placeholder="Select Project"
               className="w-full md:w-72"
             />
-
+            <h3>Ποσοστό Συνολικών ωρών για το Project {selectedProject}</h3>
             {chartData.series.length > 0 && (
     <ApexChart
       options={{
@@ -322,7 +386,7 @@ const pieChart = pieData();
           enabled: true,
           formatter: (val, opts) => {
             const label = opts.w.globals.labels[opts.seriesIndex];
-            return `${label}: ${val.toFixed(2)}h`;
+            return `${label}: ${val.toFixed(2)}%`;
           },
         },
       }}
@@ -332,6 +396,51 @@ const pieChart = pieData();
       height="400"
     />
   )}
+
+  {/* KPI Panel */}
+      <div className="bg-gray-100 p-6 rounded-2xl shadow-md min-w-[200px] text-center">
+        <p className="text-lg font-semibold mb-2">Συνολικές Ώρες Ομάδας</p>
+        <p className="text-3xl font-bold text-blue-600">{totalProjectHours}h</p>
+      </div>
+
+  <div className="card">
+  <h3>Σύγκριση Συνολικών Ωρων ομάδας μεταξυ των επιλεγμένων Project Managers</h3>
+  <MultiSelect
+    value={selectedPMs}
+    options={managerOptions}
+    onChange={(e) => setSelectedPMs(e.value)}
+    placeholder="Select Project Managers"
+    display="chip"
+    className="w-full md:w-96"
+  />
+</div>
+
+{pmBarChartData.series.length > 0 && (
+  <ApexChart
+    type="bar"
+    height={400}
+    options={{
+      chart: {
+        stacked: true,
+        toolbar: { show: true },
+      },
+      xaxis: {
+        categories: pmBarChartData.labels,
+        title: { text: "Project Managers" },
+      },
+      yaxis: {
+        title: { text: "Total Hours" },
+      },
+      legend: { position: "top" },
+      tooltip: {
+        y: { formatter: (val) => `${val.toFixed(1)} hours` },
+      },
+    }}
+    series={pmBarChartData.series}
+  />
+)}
+
+
        
     
         </div>
