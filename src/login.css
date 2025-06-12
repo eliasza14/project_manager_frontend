@@ -37,7 +37,7 @@ body {
 .login-page-container {
   display: flex;
   height: 100vh;
-  background-color:#ffffff; /* Adjust based on desired background color */
+  background-color:#3730a3 var(--tw-gradient-to-position); /* Adjust based on desired background color */
 }
 
 /* Left section for the form */
