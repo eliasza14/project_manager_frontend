@@ -31,9 +31,11 @@ const UsersOverview = () => {
   const [visibilityFilter, setVisibilityFilter] = useState('Total');
   
 
-  // useEffect(() => {
-  //   if (submitted) fetchData();
-  // }, [submitted]);
+  useEffect(() => {
+    if (startDate && endDate && visibilityFilter) {
+      fetchData();
+    }
+  }, [startDate, endDate, visibilityFilter]);
 
   useEffect(() => {
   if (!selectedUser || !selectedProject) return;

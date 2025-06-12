@@ -38,7 +38,11 @@ const [monthlyCostData, setMonthlyCostData] = useState([]);
 const [monthlyHoursData, setMonthlyHoursData] = useState([]);
 
 
-
+useEffect(() => {
+  if (startDate && endDate && visibilityFilter) {
+    getProjectOverview();
+  }
+}, [startDate, endDate, visibilityFilter,selectedProject]);
 
 const getYearsBetween = (start, end) => {
   const years = [];
