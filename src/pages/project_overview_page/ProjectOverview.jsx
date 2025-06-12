@@ -72,10 +72,10 @@ const getYearsBetween = (start, end) => {
         axios.get(`${apiBaseUrl}/projects-overview`, {
           params: { startdate: start, enddate: end, filter: visibilityFilter },
         }),
-        axios.get(`${apiBaseUrl}/users/active-count`, {
+        axios.get(`${apiBaseUrl}/active-count`, {
           params: { startdate: start, enddate: end },
         }),
-        axios.get(`${apiBaseUrl}/projects/active-count`, {
+        axios.get(`${apiBaseUrl}/active-count-project`, {
           params: { startdate: start, enddate: end },
         }),
         

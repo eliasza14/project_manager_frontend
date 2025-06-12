@@ -15,7 +15,7 @@ const UserRates = () => {
 
   const fetchUserRates = async () => {
     try {
-      const res = await axios.get(`${apiBaseUrl}/users/dayoff-hourly-rates`);
+      const res = await axios.get(`${apiBaseUrl}/dayoff-hourly-rates`);
       setData(res.data);
     } catch (err) {
       console.error("Fetch error:", err);
@@ -36,7 +36,7 @@ const UserRates = () => {
     
 
     try {
-      await axios.patch(`${apiBaseUrl}/users/update-hourly-rate`, {
+      await axios.patch(`${apiBaseUrl}/update-hourly-rate`, {
         userId: user_id,
         hourly_rate: parseFloat(hourly_rate),
       });

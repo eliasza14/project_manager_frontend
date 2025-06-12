@@ -14,7 +14,7 @@ import ApexChart from 'react-apexcharts';
 
 
 const PMOverview = () => {
-  const [startDate, setStartDate] = useState(new Date());
+  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)));
   const [endDate, setEndDate] = useState(new Date());
   const [submitted, setSubmitted] = useState(false);
   const [data, setData] = useState([]);

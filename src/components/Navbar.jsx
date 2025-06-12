@@ -8,8 +8,8 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <ul className="nav-list">
-        <li className={location.pathname === '/' ? 'active' : ''}>
-          <Link to="/">Dashboard</Link>
+        <li className={location.pathname === '/dashboard' ? 'active' : ''}>
+          <Link to="/dashboard">Dashboard</Link>
         </li>
         {/* <li className={location.pathname === '/' ? 'active' : ''}>
           <Link to="/">🏠 Home</Link>
